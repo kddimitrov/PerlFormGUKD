@@ -2,4 +2,4 @@
 use strict;
 
 
-print "This is the KD trial.";
+print "This is the GU trial.";

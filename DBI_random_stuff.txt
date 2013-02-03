@@ -1,0 +1,432 @@
+
+Method	Description
+fetchrow_arrayref()	Fetches the next row of data and returns a reference to an array.
+fetchrow_array()	Fetches the next row of data and returns it as a list.
+fetchrow_hashref()	Fetches the next row of data and returns it as a reference to a hash.
+fetchall_arrayref()	Fetches all data & returns a reference to an array that has one reference per row.
+fetch()	The method is an alias for fetchrow_arrayref().
+fetchrow()	The method is an alias for fetchrow_array().
+
+
+
+Method	Description
+selectrow_arrayref()	Combines prepare(), execute() and fetchrow_arrayref() into a single call
+selectrow_hashref()	Combines prepare(), execute() and fetchrow_hashref() into a single call
+select_row_array()	Combines prepare(), execute() and fetchrow_array() into a single call.
+selectall_arrayref()	Combines prepare(), execute() and fetchall_arrayref() into a single call.
+selectall_hashref()	Combines prepare(), execute() and fetchall_hashref() into a single call.
+selectcol_arrayref()	Combines prepare(), execute() and fetching one col from all rows into a single call.
+
+
+my $sth = $dbh->prepare("SELECT * FROM Cars LIMIT 5");
+$sth->execute();
+
+my $row;
+while ($row = $sth->fetchrow_arrayref()) {
+    print "@$row[0] @$row[1] @$row[2]\n";
+}
+
+
+
+my $row;
+while($row = $sth->fetchrow_hashref()) {
+    print "$row->{Id} $row->{Name} $row->{Price}\n";
+}
+
+
+
+
+
+
+
+ my $dbh = DBI->connect("dbi:SQLite:dbname=$dbfile","","");
+
+  use DBI qw(:sql_types);
+  my $dbh = DBI->connect("dbi:SQLite:dbfile","","");
+  
+  my $blob = `cat foo.jpg`;
+  my $sth = $dbh->prepare("INSERT INTO mytable VALUES (1, ?)");
+  $sth->bind_param(1, $blob, SQL_BLOB);
+  $sth->execute();
+
+
+  $sth = $dbh->prepare("SELECT * FROM mytable WHERE id = 1");
+  $sth->execute();
+  my $row = $sth->fetch;
+  my $blobo = $row->[1];
+  
+  # now $blobo == $blob
+
+
+  use DBI qw(:sql_types);  # Don't forget this
+  
+  my $sth = $dbh->prepare(q{
+    SELECT bar FROM foo GROUP BY bar HAVING count(*) > ?;
+  });
+  $sth->bind_param(1, 5, SQL_INTEGER);
+  $sth->execute();
+
+
+  $dbh->{AutoCommit} = 1;
+  
+  $dbh->begin_work; # or $dbh->do('BEGIN TRANSACTION');
+  
+  # $dbh->{AutoCommit} is turned off temporarily during a transaction;
+  
+  $dbh->commit; # or $dbh->do('COMMIT');
+  
+  # $dbh->{AutoCommit} is turned on again;
+
+
+  my $dbh = DBI->connect("dbi:SQLite::memory:", "", "", {
+    sqlite_use_immediate_transaction => 1,
+  });
+
+
+
+
+  $sth = $dbh->prepare("SELECT * FROM t");
+  $dbh->begin_work;
+  eval {
+      $sth->execute;
+      $row = $sth->fetch;
+      ...
+      die "For some reason";
+      ...
+  };
+  if($@) {
+     $sth->finish;  # You need this for SQLite
+     $dbh->rollback;
+  } else {
+     $dbh->commit;
+  }
+
+
+
+  SELECT url, count(*) as count
+  FROM access_log
+  GROUP BY url
+  ORDER BY count desc
+  LIMIT 20
+
+
+
+
+sqlite_unicode
+If set to a true value, DBD::SQLite will turn the UTF-8 flag on for all text strings coming out of the database (this feature is currently disabled for perl < 5.8.5). For more details on the UTF-8 flag see perlunicode. The default is for the UTF-8 flag to be turned off.
+
+Also note that due to some bizarreness in SQLite's type system (see http://www.sqlite.org/datatype3.html), if you want to retain blob-style behavior for some columns under $dbh->{sqlite_unicode} = 1 (say, to store images in the database), you have to state so explicitly using the 3-argument form of "bind_param" in DBI when doing updates:
+
+  use DBI qw(:sql_types);
+  $dbh->{sqlite_unicode} = 1;
+  my $sth = $dbh->prepare("INSERT INTO mytable (blobcolumn) VALUES (?)");
+  
+  # Binary_data will be stored as is.
+  $sth->bind_param(1, $binary_data, SQL_BLOB);
+Defining the column type as BLOB in the DDL is not sufficient.
+
+This attribute was originally named as unicode, and renamed to sqlite_unicode for integrity since version 1.26_06. Old unicode attribute is still accessible but will be deprecated in the near future.
+
+
+
+
+primary_key, primary_key_info
+
+  @names = $dbh->primary_key(undef, $schema, $table);
+  $sth   = $dbh->primary_key_info(undef, $schema, $table, \%attr);
+You can retrieve primary key names or more detailed information. As noted above, SQLite does not have the concept of catalogs, so the first argument of the mothods is usually undef, and you'll usually set undef for the second one (unless you want to know the primary keys of temporary tables).
+
+
+  my $dbh = DBI->connect(
+      "dbi:SQLite:dbname=foo", "", "",
+      {
+          RaiseError     => 1,
+          sqlite_unicode => 1,
+      }
+  );
+
+
+
+use DBI;
+my $dbfile = 'database.db';      # your database file
+my $dbh = DBI->connect(          # connect to your database, create if
++ needed
+    "dbi:SQLite:dbname=$dbfile", # DSN: dbi, driver, database file
+    "",                          # no user
+    "",                          # no password
+    { RaiseError => 1 },         # complain if something goes wrong
+) or die $DBI::errstr;
+
+my $table = 'test';
+my @rows  = qw(id time data);
+$dbh->do("create table $table (".join(',',@rows).')')
+  or die $DBI::errstr;
+
+
+-----------------------------------------------
+
+for select
+
+  $sth = $dbh->prepare("SELECT foo, bar FROM table WHERE baz=?");
+
+  $sth->execute( $baz );
+
+  while ( @row = $sth->fetchrow_array ) {
+    print "@row\n";
+  }
+
+
+non select
+
+
+  $sth = $dbh->prepare("INSERT INTO table(foo,bar,baz) VALUES (?,?,?)");
+
+  while(<CSV>) {
+    chomp;
+    my ($foo,$bar,$baz) = split /,/;
+        $sth->execute( $foo, $bar, $baz );
+  }
+
+
+The do() method can be used for non repeated non-SELECT statement (or with drivers that don't support placeholders):
+
+  $rows_affected = $dbh->do("UPDATE your_table SET foo = foo + 1");
+
+
+  for my $col ("age", "phone", "email") {
+    if (defined $h{$col}) {
+      push @sql_qual, "$col = ?";
+      push @sql_bind, $h{$col};
+    }
+    else {
+      push @sql_qual, "$col IS NULL";
+    }
+  }
+  $sql_clause = join(" AND ", @sql_qual);
+  $sth = $dbh->prepare(qq{
+      SELECT fullname FROM people WHERE $sql_clause
+  });
+  $sth->execute(@sql_bind);
+
+
+
+The following program will create a database and enter records:
+
+   #!/usr/bin/perl
+
+   use DBI;
+
+   $dbh = DBI->connect( "dbi:SQLite:data.dbl" ) || die "Cannot connect: $DBI::errstr";
+
+   $dbh->do( "CREATE TABLE authors ( lastname, firstname )" );
+   $dbh->do( "INSERT INTO authors VALUES ( 'Conway', 'Damian' ) " );
+   $dbh->do( "INSERT INTO authors VALUES ( 'Booch', 'Grady' ) " );
+   $dbh->do( "CREATE TABLE books ( title, author )" );
+   $dbh->do( "INSERT INTO books VALUES ( 'Object Oriented Perl',
+                                             'Conway' ) " );
+   $dbh->do( "INSERT INTO books VALUES ( 'Object-Oriented Analysis and Design',
+                                             'Booch' ) ");
+   $dbh->do( "INSERT INTO books VALUES ( 'Object Solutions', 'Booch' ) " );
+
+
+   $res = $dbh->selectall_arrayref( q( SELECT a.lastname, a.firstname, b.title
+                                           FROM books b, authors a
+                                           WHERE b.title like '%Orient%'
+                                       AND a.lastname = b.author ) );
+
+   foreach( @$res ) {
+    foreach $i (0..$#$_) {
+       print "$_->[$i] "
+       }
+    print "\n";
+
+   }
+
+   $dbh->disconnect;
+
+
+
+
+
+
+
+
+
+
+
+#!/usr/bin/perl
+
+use strict;
+use DBI;
+
+my $dbh = DBI->connect(          
+    "dbi:SQLite:dbname=test.db", 
+    "",                          
+    "",                          
+    { RaiseError => 1 },         
+) or die $DBI::errstr;
+
+my $sth = $dbh->prepare("SELECT SQLITE_VERSION()");
+$sth->execute();
+
+my $ver = $sth->fetch();
+
+print @$ver;
+print "\n";
+
+$sth->finish();
+$dbh->disconnect();
+
+
+
+
+
+#!/usr/bin/perl
+
+use strict;
+use DBI;
+
+my $dbh = DBI->connect(          
+    "dbi:SQLite:dbname=test.db", 
+    "",
+    "",
+    { RaiseError => 1}
+) or die $DBI::errstr;
+
+$dbh->do("DROP TABLE IF EXISTS Cars");
+$dbh->do("CREATE TABLE Cars(Id INT PRIMARY KEY, Name TEXT, Price INT)");
+$dbh->do("INSERT INTO Cars VALUES(1,'Audi',52642)");
+$dbh->do("INSERT INTO Cars VALUES(2,'Mercedes',57127)");
+$dbh->do("INSERT INTO Cars VALUES(3,'Skoda',9000)");
+$dbh->do("INSERT INTO Cars VALUES(4,'Volvo',29000)");
+$dbh->do("INSERT INTO Cars VALUES(5,'Bentley',350000)");
+$dbh->do("INSERT INTO Cars VALUES(6,'Citroen',21000)");
+$dbh->do("INSERT INTO Cars VALUES(7,'Hummer',41400)");
+$dbh->do("INSERT INTO Cars VALUES(8,'Volkswagen',21600)");
+
+$dbh->disconnect();
+
+
+
+
+#!/usr/bin/perl
+
+use strict;
+use DBI;
+
+my $dbh = DBI->connect(          
+    "dbi:SQLite:dbname=test.db",               
+    { RaiseError => 1 } 
+) or die $DBI::errstr;
+
+my $sth = $dbh->prepare( "SELECT * FROM Cars WHERE Id=1" );  
+$sth->execute();
+      
+my ($id, $name, $price) = $sth->fetchrow();
+print "$id $name $price\n";
+
+my $fields = $sth->{NUM_OF_FIELDS};
+print "We have selected $fields field(s)\n";
+
+my $rows = $sth->rows();
+print "We have selected $rows row(s)\n";
+
+$sth->finish();
+$dbh->disconnect();
+
+
+
+
+
+
+#!/usr/bin/perl
+
+use strict;
+use DBI;
+
+my $dsn = "dbi:SQLite:dbname=test.db";
+my $user = '';
+my $password = '';
+my %attr = ( RaiseError => 1, AutoCommit => 0, HandleError => \&handle_error );
+
+my $dbh = DBI->connect($dsn, $user, $password, \%attr) 
+    or die "Can't connect to database: $DBI::errstr";
+
+$dbh->do("UPDATE Cars SET Price=52000 WHERE Id=1");
+$dbh->do("UPDATE Car SET Price=22000 WHERE Id=8");
+
+$dbh->commit();
+
+$dbh->disconnect();
+
+sub handle_error {
+
+    $dbh->rollback();
+
+    my $error = shift;
+    print "An error occured in the script\n";
+    print "Message: $error\n";
+    return 1;
+}
+
+
+
+
+
+
+
+
+
+
+#!/usr/bin/perl
+
+use strict;
+use DBI;
+use DBI qw(:sql_types);
+
+my $dsn = "dbi:SQLite:dbname=test.db";
+my $user = '';
+my $password = '';
+my %attr = ( RaiseError => 1, AutoCommit => 0 );
+
+my $dbh = DBI->connect($dsn, $user, $password, \%attr) 
+    or die "Can't connect to database: $DBI::errstr";
+
+my @data = (
+    [ 1, "Audi", 52642],
+    [ 2, "Mercedes", 57127],
+    [ 3, "Skoda", 9000], 
+    [ 4, "Volvo", 29000], 
+    [ 5, "Bentley", 350000], 
+    [ 6, "Citroen", 21000],
+    [ 7, "Hummer", 41400],
+    [ 8, "Volkswagen", 21601] 
+);
+
+eval {
+    $dbh->do("DROP TABLE IF EXISTS Cars");
+    $dbh->do("CREATE TABLE Cars(Id INTEGER PRIMARY KEY, Name TEXT, Price INT)");
+};
+
+my $sql = qq{ INSERT INTO Cars VALUES ( ?, ?, ? ) };
+my $sth = $dbh->prepare( $sql );
+
+
+foreach my $row (@data) {
+
+  eval {
+      $sth->bind_param( 1, @$row[0], SQL_INTEGER );
+      $sth->bind_param( 2, @$row[1], SQL_VARCHAR );
+      $sth->bind_param( 3, @$row[2], SQL_INTEGER );
+      $sth->execute();
+      $dbh->commit();
+  };
+
+  if( $@ ) {
+      warn "Database error: $DBI::errstr\n";
+      $dbh->rollback(); 
+  }
+}
+
+$sth->finish();
+$dbh->disconnect();
